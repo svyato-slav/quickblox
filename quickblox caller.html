@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+</head>
+<body>
+  <button id="all" onclick="initAll()">Initialization. 10 seconds required</button><br>
+  <button id="call" onclick="call()">Call</button><br>
+  <textarea id="message"></textarea><br>
+  <button id="send" onclick="sendMessage()">Send Message</button><br>
+  <div id="messages"></div>
+  <video width="300" height="150" id="video"></video>
+  <video width="600" height="300" id="remoteVideo"></video>
+  <script src="https://unpkg.com/quickblox@2.12.7/quickblox.min.js"></script>
+  <script>
+
+    var APPLICATION_ID = "";
+    var AUTH_KEY = "";
+    var AUTH_SECRET = "";
+    var CONFIG = {debug: { mode: 1 }};
+    CONFIG = {};
+
+    function init() {
+      QB.init(APPLICATION_ID, AUTH_KEY, AUTH_SECRET, CONFIG);
+    }
+
+    function createSession() {
+      QB.createSession(function(err, result) {
+        // callback function
+        console.log(err, result);
+      });
+    }
+
+    function register() {
+      var params = {
+        login: 'life567@mail.ru',
+        password: "1234Qwerty",
+        full_name: "Svyatoslav Schurov"
+      };
+      QB.users.create(params, function(err, result) {
+        // callback function
+        console.log(err, result);
+      });
+    }
+
+    function login() {
+      var params = { login: "life567@mail.ru", password: "1234Qwerty" };
+      QB.login(params, function(err, result) {
+        // callback function
+        console.log('login', err, result);
+      });
+    }
+
+    function chat() {
+      var userCredentials = {
+        userId: 122173607,
+        password: "1234Qwerty"
+      };
+      QB.chat.connect(userCredentials, function(error, contactList) {
+        console.log('chat', error, contactList);
+      });
+    }
+
+    var dialogId;
+    function dialog() {
+      var params = {
+        type: 3,
+        occupants_ids: [122175707]
+      };
+      QB.chat.dialog.create(params, function(error, conversation) {
+        console.log('dialog', error, conversation);
+        dialogId = conversation._id;
+      });
+      QB.chat.onMessageListener = onMessage;
+
+      function onMessage(userId, message) {
+        console.log(message)
+        document.getElementById('messages').innerText = message.body;
+      }
+    }
+
+    function sendMessage() {
+      var text = document.getElementById("message").value;
+      console.log(text)
+      var message = {
+        type: "chat",
+        body: text,
+        extension: {
+          save_to_history: 1,
+          dialog_id: dialogId
+        },
+        markable: 1
+      };
+      var opponentId = 122175707;
+      message.id = QB.chat.send(opponentId, message);
+    }
+
+    function call() {
+      QB.webrtc.onRemoteStreamListener = (session, userID, remoteStream) => {
+        console.log(123, remoteStream)
+        session.attachMediaStream('remoteVideo', remoteStream)
+      };
+      QB.webrtc.onUserNotAnswerListener = function(session, userId) {
+        console.log(session, userId, 'not answered');
+      };
+      var calleesIds = [122175707]; // Users' ids
+      var sessionType = QB.webrtc.CallType.VIDEO; // AUDIO is also possible
+      var additionalOptions = {};
+      var session = QB.webrtc.createNewSession(calleesIds, sessionType, null, additionalOptions);
+      var mediaParams = {
+        audio: true,
+        video: true,
+        options: {
+          muted: true,
+          mirror: true
+        },
+        elemId: "video"
+      };
+      session.getUserMedia(mediaParams, function(err, stream) {
+        console.log(err, stream);
+        if (err) {
+        } else {
+          var extension = {};
+          session.call(extension, function(error) {
+            console.log(error);
+          });
+        }
+      });
+    }
+
+    function initAll() {
+      init()
+      setTimeout(createSession, 500)
+      setTimeout(login, 2000)
+      setTimeout(chat, 3500)
+      setTimeout(dialog, 5000)
+    }
+  </script>
+</body>
+</html>
